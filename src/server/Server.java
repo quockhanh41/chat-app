@@ -8,13 +8,17 @@ import java.util.*;
 public class Server {
     ServerGUI serverGUI;
     ServerSocket serverSocket;
-    final Map<String, ClientHandler> clients = Collections.synchronizedMap(new HashMap<>());
+    private static final Map<String, PrintWriter> clientHandlers = new HashMap<>();
     boolean isRunning = false;
 
     public Server() {
         serverGUI = new ServerGUI();
         serverGUI.startButton.addActionListener(e -> startServer());
         serverGUI.stopButton.addActionListener(e -> stopServer());
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(Server::new);
     }
 
     private void startServer() {
@@ -35,9 +39,8 @@ public class Server {
                         serverGUI.log("Waiting for clients...\n");
                         Socket clientSocket = serverSocket.accept();
                         serverGUI.log("New client connected: " + clientSocket.getInetAddress() + "\n");
-                        // Create and start ClientHandler thread
-                        new Thread(new ClientHandler(clientSocket, this)).start();
-
+                        ClientHandler clientHandler = new ClientHandler(clientSocket);
+                        clientHandler.start();
                     } catch (IOException ex) {
                         if (isRunning) {
                             serverGUI.log("Error accepting client: " + ex.getMessage() + "\n");
@@ -45,6 +48,7 @@ public class Server {
                     }
                 }
             }).start();
+
         } catch (IOException ex) {
             serverGUI.log("Error starting server: " + ex.getMessage() + "\n");
         }
@@ -62,51 +66,97 @@ public class Server {
             serverGUI.stopButton.setEnabled(false);
             serverGUI.portField.setEditable(true);
 
-            synchronized (clients) {
-                for (ClientHandler client : clients.values()) {
-                    client.closeConnection();
-                }
-                clients.clear();
+            synchronized (clientHandlers) {
+                clientHandlers.clear();
             }
         } catch (IOException ex) {
             serverGUI.log("Error stopping server: " + ex.getMessage() + "\n");
         }
     }
 
-    void addClient(String username, ClientHandler clientHandler) {
-        synchronized (clients) {
-            this.clients.put(username, clientHandler);
-        }
-    }
-
-    void broadcast(String message) {
-        synchronized (clients) {
-            for (Map.Entry<String, ClientHandler> entry : clients.entrySet()) {
-                System.out.println("Sending message to " + entry.getKey());
-                ClientHandler clientHandler = entry.getValue();
-                clientHandler.out.println(message);
+    private static void broadcastMessage(String message) {
+        synchronized (clientHandlers) {
+            for (PrintWriter writer : clientHandlers.values()) {
+                writer.println(message);
             }
         }
     }
 
-    void broadcastOnlineUsers() {
-        StringBuilder onlineUsers = new StringBuilder("CMD_ONLINE ");
-        synchronized (clients) {
-            for (String user : clients.keySet()) {
-                onlineUsers.append(user).append(" ");
+    private static class ClientHandler extends Thread {
+        Socket socket;
+        PrintWriter out;
+        BufferedReader in;
+        String username;
+
+        public ClientHandler(Socket socket) {
+            this.socket = socket;
+        }
+
+        @Override
+        public void run() {
+            try {
+                in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                out = new PrintWriter(socket.getOutputStream(), true);
+
+                String message;
+                while ((message = in.readLine()) != null) {
+                    processMessage(message);
+                }
+            } catch (IOException e) {
+                System.err.println("Connection error with client: " + username);
+            } finally {
+                disconnect();
             }
         }
-        broadcast(onlineUsers.toString().trim());
-    }
 
-    void removeClient(String username) {
-        synchronized (clients) {
-            this.clients.remove(username);
-            serverGUI.log(username + " removed from the client list.\n");
+        public void disconnect() {
+            try {
+                socket.close();
+                // Remove the client from the list of online users
+                synchronized (clientHandlers) {
+                    clientHandlers.remove(username);
+                }
+                ServerGUI.logArea.append(username + " has left the chat.\n");
+                broadcastMessage(getOnlineUsersString());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
-    }
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(Server::new);
+
+        public void sendMessage(String message) {
+            out.println(message);
+        }
+
+        // Process incoming messages
+        public void processMessage(String message) {
+            if (message.startsWith("CMD_JOIN ")) {
+                username = message.substring(9);
+                ServerGUI.logArea.append(username + " has joined the chat.\n");
+                synchronized (clientHandlers) {
+                    clientHandlers.put(username, out);
+                }
+                sendMessage("Welcome to the chat, " + username + "!");
+                broadcastMessage(getOnlineUsersString());
+            } else if (message.startsWith("CMD_MESSAGE ")) {
+                broadcastMessage(message);
+            } else if (message.equals("CMD_QUIT")) {
+                broadcastMessage(username + " has left the chat.");
+                synchronized (clientHandlers) {
+                    clientHandlers.remove(username);
+                }
+            }
+        }
+
+        // Create a String of all online users, format: "CMD_ONLINE <user1> <user2> ..."
+        public String getOnlineUsersString() {
+            StringBuilder users = new StringBuilder("CMD_ONLINE");
+            synchronized (clientHandlers) {
+                for (String user : clientHandlers.keySet()) {
+                    users.append(" ").append(user);
+                }
+            }
+            return users.toString();
+        }
     }
 }

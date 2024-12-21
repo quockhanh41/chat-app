@@ -1,7 +1,10 @@
 package src.client;
 
+import src.server.Server;
+
 import java.io.*;
 import java.net.Socket;
+import java.util.Objects;
 import java.util.StringTokenizer;
 import javax.swing.*;
 
@@ -30,29 +33,15 @@ public class Client {
             clientGUI.setVisible(true);
             clientGUI.chatArea.append("Connected to server.\n");
 
-            // Set up the send button action
-            clientGUI.sendButton.addActionListener(e -> {
-                String message = clientGUI.inputField.getText().trim();
-                if (!message.isEmpty()) {
-                    writer.println("CMD_CHAT " + message);
-                    clientGUI.inputField.setText("");
-                }
-            });
-
             // Listen for messages from the server in a separate thread
             new Thread(() -> {
+                String serverMessage;
                 try {
-                    while (running) {
-                        String response = reader.readLine();
-                        if (response == null) break; // Server closed the connection
-                        processServerResponse(response);
+                    while ((serverMessage = reader.readLine()) != null) {
+                        processServerResponse(serverMessage);
                     }
                 } catch (IOException e) {
-                    if (running) {
-                        clientGUI.chatArea.append("Connection error: " + e.getMessage() + "\n");
-                    }
-                } finally {
-                    close(); // Ensure resources are closed when the thread exits
+                    System.out.println("Disconnected from the server.");
                 }
             }).start();
         } catch (IOException e) {
@@ -63,31 +52,25 @@ public class Client {
         }
     }
 
-    /**
-     * Processes incoming messages from the server.
-     *
-     * @param response The message received from the server.
-     */
     private void processServerResponse(String response) {
         StringTokenizer tokenizer = new StringTokenizer(response);
         if (!tokenizer.hasMoreTokens()) return;
 
         String command = tokenizer.nextToken();
         switch (command) {
-            case "CMD_CHAT":
-                appendMessage(response.substring(command.length()).trim());
+            // format: CMD_MESSAGE <sendUser> <receiveUser> <message>
+            case "CMD_MESSAGE":
+                String sendUser = tokenizer.nextToken();
+                String receiveUser = tokenizer.nextToken();
+                String message = response.substring(command.length() + sendUser.length() + receiveUser.length() + 3);
+                if (receiveUser.equals("ALL") || receiveUser.equals(clientUsername)) {
+                    appendMessage(sendUser + ": " + message);
+                }
                 break;
 
-            case "CMD_JOIN":
-                appendMessage(tokenizer.nextToken() + " has joined the chat.");
-                break;
-
-            case "CMD_LEAVE":
-                appendMessage(tokenizer.nextToken() + " has left the chat.");
-                break;
-
+            // format: CMD_ONLINE <user1> <user2> ...
             case "CMD_ONLINE":
-                // Update the online user list
+                // clear the current user list then update it
                 DefaultListModel<String> userListModel = new DefaultListModel<>();
                 while (tokenizer.hasMoreTokens()) {
                     userListModel.addElement(tokenizer.nextToken());
@@ -101,27 +84,8 @@ public class Client {
         }
     }
 
-    /**
-     * Appends a message to the chat area.
-     *
-     * @param message The message to append.
-     */
     private void appendMessage(String message) {
         SwingUtilities.invokeLater(() -> clientGUI.chatArea.append(message + "\n"));
-    }
-
-    /**
-     * Closes the client's resources and stops the connection.
-     */
-    public void close() {
-        running = false;
-        try {
-            if (reader != null) reader.close();
-            if (writer != null) writer.close();
-            if (socket != null && !socket.isClosed()) socket.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     public static void main(String[] args) {
