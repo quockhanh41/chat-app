@@ -33,6 +33,15 @@ public class Client {
             clientGUI.setVisible(true);
             clientGUI.chatArea.append("Connected to server.\n");
 
+            // add action listener to the send button
+            clientGUI.sendButton.addActionListener(e -> {
+                String message = clientGUI.inputField.getText();
+                if (!message.isEmpty()) {
+                    writer.println("CMD_MESSAGE " + clientUsername + " " + message);
+                    clientGUI.inputField.setText("");
+                }
+            });
+
             // Listen for messages from the server in a separate thread
             new Thread(() -> {
                 String serverMessage;
@@ -70,12 +79,7 @@ public class Client {
 
             // format: CMD_ONLINE <user1> <user2> ...
             case "CMD_ONLINE":
-                // clear the current user list then update it
-                DefaultListModel<String> userListModel = new DefaultListModel<>();
-                while (tokenizer.hasMoreTokens()) {
-                    userListModel.addElement(tokenizer.nextToken());
-                }
-                clientGUI.userList.setModel(userListModel);
+                clientGUI.updateOnlineUsers(tokenizer);
                 break;
 
             default:

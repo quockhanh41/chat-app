@@ -2,6 +2,7 @@ package src.client;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.StringTokenizer;
 
 public class ClientGUI extends JFrame {
     public JToolBar toolBar;
@@ -88,10 +89,10 @@ public class ClientGUI extends JFrame {
     }
 
     // Helper method to update the online user list
-    public void updateOnlineUsers(String[] users) {
+    public void updateOnlineUsers(StringTokenizer tokenizer) {
         DefaultListModel<String> userListModel = new DefaultListModel<>();
-        for (String user : users) {
-            userListModel.addElement(user);
+        while (tokenizer.hasMoreTokens()) {
+            userListModel.addElement(tokenizer.nextToken());
         }
         userList.setModel(userListModel);
     }
