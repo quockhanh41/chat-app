@@ -4,7 +4,6 @@ import src.server.Server;
 
 import java.io.*;
 import java.net.Socket;
-import java.util.Objects;
 import java.util.StringTokenizer;
 import javax.swing.*;
 
@@ -41,6 +40,16 @@ public class Client {
                     clientGUI.inputField.setText("");
                 }
             });
+
+            // add action listener to the privateSendButton
+            clientGUI.privateSendButton.addActionListener(e -> {
+                String message = clientGUI.privateInputField.getText();
+                if (!message.isEmpty()) {
+                    writer.println("CMD_MESSAGE " + clientUsername + " " + clientGUI.selectedUser + " " + message);
+                    clientGUI.privateInputField.setText("");
+                }
+            });
+
 
             // Listen for messages from the server in a separate thread
             new Thread(() -> {
@@ -79,7 +88,7 @@ public class Client {
 
             // format: CMD_ONLINE <user1> <user2> ...
             case "CMD_ONLINE":
-                clientGUI.updateOnlineUsers(tokenizer);
+                clientGUI.updateOnlineUsers(tokenizer, clientUsername);
                 break;
 
             default:

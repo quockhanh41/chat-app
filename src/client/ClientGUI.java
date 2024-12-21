@@ -2,6 +2,9 @@ package src.client;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.io.*;
 import java.util.StringTokenizer;
 
 public class ClientGUI extends JFrame {
@@ -13,8 +16,13 @@ public class ClientGUI extends JFrame {
     public JPanel bottomPanel;
     public JTextField inputField;
     public JButton sendButton;
-    public String[] usersOnline;
-    JList<String> userList;
+    public JList<String> userList;
+    public JTextArea privateChatArea;
+    public JScrollPane privateChatScrollPane;
+    public JPanel privateBottomPanel;
+    public JTextField privateInputField;
+    public JButton privateSendButton;
+    public String selectedUser;
 
     // Constructor to set up the UI components
     public ClientGUI(String username) {
@@ -41,6 +49,7 @@ public class ClientGUI extends JFrame {
         chatScrollPane = new JScrollPane(chatArea);
         chatScrollPane.setBorder(BorderFactory.createTitledBorder("Chat Area"));
         add(chatScrollPane, BorderLayout.CENTER);
+        privateSendButton = new JButton("Send");
 
         // Online Users Panel
         onlinePanel = new JPanel(new BorderLayout());
@@ -56,6 +65,19 @@ public class ClientGUI extends JFrame {
             panel.add(textLabel, BorderLayout.CENTER);
             panel.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
             return panel;
+        });
+
+        // Add mouse listener for userList
+        userList.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) { // Double-click to open chat
+                    selectedUser = userList.getSelectedValue();
+                    if (selectedUser != null) {
+                        openPrivateChatWindow(username, selectedUser);
+                    }
+                }
+            }
         });
 
         userScrollPane = new JScrollPane(userList);
@@ -89,11 +111,58 @@ public class ClientGUI extends JFrame {
     }
 
     // Helper method to update the online user list
-    public void updateOnlineUsers(StringTokenizer tokenizer) {
+    public void updateOnlineUsers(StringTokenizer tokenizer, String currentUsername) {
         DefaultListModel<String> userListModel = new DefaultListModel<>();
         while (tokenizer.hasMoreTokens()) {
-            userListModel.addElement(tokenizer.nextToken());
+            String client = tokenizer.nextToken();
+
+            if (!client.equals(currentUsername)) {
+                userListModel.addElement(client);
+            }
         }
         userList.setModel(userListModel);
+    }
+
+    // Method to open a private chat window
+    public void openPrivateChatWindow(String currentUser, String selectedUser) {
+        JFrame privateChatFrame = new JFrame("Private Chat with " + selectedUser);
+        privateChatFrame.setSize(400, 300);
+        privateChatFrame.setLayout(new BorderLayout());
+        privateChatFrame.setLocationRelativeTo(null);
+
+        // Chat area
+        privateChatArea = new JTextArea();
+        privateChatArea.setEditable(false);
+        privateChatScrollPane = new JScrollPane(privateChatArea);
+        privateChatScrollPane.setBorder(BorderFactory.createTitledBorder("Chat with " + selectedUser));
+        privateChatFrame.add(privateChatScrollPane, BorderLayout.CENTER);
+
+        // Input panel
+        privateBottomPanel = new JPanel(new BorderLayout());
+        privateInputField = new JTextField();
+//        privateSendButton = new JButton("Send");
+        privateBottomPanel.add(privateInputField, BorderLayout.CENTER);
+        privateBottomPanel.add(privateSendButton, BorderLayout.EAST);
+        privateChatFrame.add(privateBottomPanel, BorderLayout.SOUTH);
+
+        // Load chat history from file (if exists)
+        String chatFileName = selectedUser + "_" + currentUser + ".txt";
+        if (currentUser.compareTo(selectedUser) < 0) {
+            chatFileName = currentUser + "_" + selectedUser + ".txt";
+        }
+        File chatFile = new File("src/chat_logs/" + chatFileName);
+        if (chatFile.exists()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(chatFile))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    privateChatArea.append(line + "\n");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+
+        privateChatFrame.setVisible(true);
     }
 }

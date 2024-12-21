@@ -139,12 +139,38 @@ public class Server {
                 sendMessage("Welcome to the chat, " + username + "!");
                 broadcastMessage(getOnlineUsersString());
             } else if (message.startsWith("CMD_MESSAGE ")) {
-                broadcastMessage(message);
+                // message format: "CMD_MESSAGE <sender> <receiver> <message>"
+                StringTokenizer tokenizer = new StringTokenizer(message);
+                tokenizer.nextToken();
+                String sender = tokenizer.nextToken();
+                String receiver = tokenizer.nextToken();
+                String msg = message.substring(14 + sender.length() + receiver.length());
+
+                if (clientHandlers.containsKey(receiver)) {
+                    clientHandlers.get(receiver).println(message);
+                }
+
+                writeMessageToFile(sender, receiver, msg);
+
             } else if (message.equals("CMD_QUIT")) {
                 broadcastMessage(username + " has left the chat.");
                 synchronized (clientHandlers) {
                     clientHandlers.remove(username);
                 }
+            }
+        }
+
+        // write message between 2 users to a file with the format "sender_receiver.txt" in the chat_logs directory
+        public void writeMessageToFile(String sender, String receiver, String message) {
+            // compare the usernames to determine the filename
+            String filename = "src/chat_logs/" + sender + "_" + receiver + ".txt";
+            if (sender.compareTo(receiver) > 0) {
+                filename = "src/chat_logs/" + receiver + "_" + sender + ".txt";
+            }
+            try (PrintWriter writer = new PrintWriter(new FileWriter(filename, true))) {
+                writer.println(sender + ": " + message);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
 
