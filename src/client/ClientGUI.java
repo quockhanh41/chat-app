@@ -11,6 +11,7 @@ import java.io.File;
 import java.io.PrintWriter;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.StringTokenizer;
 
 public class ClientGUI extends JFrame {
@@ -27,43 +28,36 @@ public class ClientGUI extends JFrame {
     public PrivateChatWindow privateChatWindow;
     private PrintWriter writer;
 
-    // Constructor to set up the UI components
     public ClientGUI(String username, PrintWriter writer) {
         this.writer = writer;
-        // Set up the frame properties
         setTitle("You are logged in as: " + username);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(600, 400);
         setLayout(new BorderLayout());
         setLocationRelativeTo(null);
 
-        // Top Tool Bar
         toolBar = new JToolBar();
         toolBar.add(myCreateButton("File Sharing", "src/client/image/account.png"));
-        toolBar.add(myCreateButton("Account", "src/client/image/account.png"));
         toolBar.add(myCreateButton("Video Call", "src/client/image/video.png"));
         toolBar.add(myCreateButton("Voice Call", "src/client/image/voice.png"));
         toolBar.add(myCreateButton("Tools", "src/client/image/tools.png"));
         toolBar.add(myCreateButton("Contacts", "src/client/image/contacts.png"));
+        toolBar.add(myCreateButton("Create Group", "src/client/image/group.png"));
         add(toolBar, BorderLayout.NORTH);
 
-        // Main Chat Area
         chatArea = new JTextArea();
         chatArea.setEditable(false);
         chatScrollPane = new JScrollPane(chatArea);
         chatScrollPane.setBorder(BorderFactory.createTitledBorder("Chat Area"));
         add(chatScrollPane, BorderLayout.CENTER);
 
-
-        // Online Users Panel
         onlinePanel = new JPanel(new BorderLayout());
         userList = new JList<>();
 
-        // Set the custom cell renderer for the online user list
         userList.setCellRenderer((list, value, index, isSelected, cellHasFocus) -> {
             JPanel panel = new JPanel(new BorderLayout());
             JLabel iconLabel = new JLabel(new ImageIcon(new ImageIcon("src/client/image/green_icon.png").getImage()
-                    .getScaledInstance(10, 10, Image.SCALE_SMOOTH))); // Set the green icon
+                    .getScaledInstance(10, 10, Image.SCALE_SMOOTH)));
             JLabel textLabel = new JLabel(value);
             panel.add(iconLabel, BorderLayout.WEST);
             panel.add(textLabel, BorderLayout.CENTER);
@@ -71,11 +65,10 @@ public class ClientGUI extends JFrame {
             return panel;
         });
 
-        // Add mouse listener for userList
         userList.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) { // Double-click to open chat
+                if (e.getClickCount() == 2) {
                     selectedUser = userList.getSelectedValue();
                     if (selectedUser != null) {
                         privateChatWindow = new PrivateChatWindow(username, selectedUser, writer);
@@ -90,25 +83,29 @@ public class ClientGUI extends JFrame {
         onlinePanel.add(userScrollPane, BorderLayout.CENTER);
         add(onlinePanel, BorderLayout.EAST);
 
-        // Bottom Panel (Input Field and Send Button)
         bottomPanel = new JPanel(new BorderLayout());
         inputField = new JTextField();
         sendButton = myCreateButton("Send Message", "src/client/image/send.png");
         bottomPanel.add(inputField, BorderLayout.CENTER);
         bottomPanel.add(sendButton, BorderLayout.EAST);
         add(bottomPanel, BorderLayout.SOUTH);
+
+        toolBar.getComponent(5).addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                createGroupDialog(username);
+            }
+        });
     }
 
-    // Helper method to create a JButton with text and icon
     private static JButton myCreateButton(String text, String iconPath) {
         ImageIcon icon = new ImageIcon(iconPath);
-        Image image = icon.getImage(); // transform it
-        Image newimg = image.getScaledInstance(24, 24, java.awt.Image.SCALE_SMOOTH); // scale it the smooth way
-        icon = new ImageIcon(newimg);  // transform it back
+        Image image = icon.getImage();
+        Image newimg = image.getScaledInstance(24, 24, Image.SCALE_SMOOTH);
+        icon = new ImageIcon(newimg);
         return new JButton(text, icon);
     }
 
-    // Helper method to update the online user list
     public void updateOnlineUsers(StringTokenizer tokenizer, String currentUsername) {
         DefaultListModel<String> userListModel = new DefaultListModel<>();
         while (tokenizer.hasMoreTokens()) {
@@ -120,24 +117,48 @@ public class ClientGUI extends JFrame {
         userList.setModel(userListModel);
     }
 
-    // Helper method to play a sound when a message is received
+    public static String getCurrentTime() {
+        LocalDateTime currentTime = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm dd:MMM:yy");
+        return currentTime.format(formatter);
+    }
+
     public void playNotificationSound() {
         try {
-            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new File("src/client/sound/notification.wav").getAbsoluteFile());
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(
+                    new File("src/client/sound/notification.wav").getAbsoluteFile());
             Clip clip = AudioSystem.getClip();
             clip.open(audioInputStream);
             clip.start();
         } catch (Exception e) {
-            System.err.println("Error playing notification sound.");
+            System.err.println("Error playing notification sound: " + e.getMessage());
         }
     }
 
-    public static String getCurrentTime() {
-        // Get the current date and time
-        LocalDateTime currentTime = LocalDateTime.now();
-        // Define the desired format
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm dd:MMM:yy");
-        // Format and return the current date and time as a string
-        return currentTime.format(formatter);
+    private void createGroupDialog(String username) {
+        JTextField groupNameField = new JTextField();
+        JList<String> userSelectionList = new JList<>(userList.getModel());
+        userSelectionList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        JScrollPane userScrollPane = new JScrollPane(userSelectionList);
+
+        Object[] message = {
+                "Group Name:", groupNameField,
+                "Select Members:", userScrollPane
+        };
+
+        int option = JOptionPane.showConfirmDialog(this, message, "Create Group", JOptionPane.OK_CANCEL_OPTION);
+        if (option == JOptionPane.OK_OPTION) {
+            String groupName = groupNameField.getText().trim();
+            List<String> selectedUsers = userSelectionList.getSelectedValuesList();
+
+            if (groupName.isEmpty() || selectedUsers.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Group name and members cannot be empty.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            String command = "CMD_CREATE_GROUP " + groupName + " " + String.join(" ", selectedUsers);
+            writer.println(command);
+            chatArea.append("Group creation request sent for: " + groupName + "\n");
+        }
     }
 }

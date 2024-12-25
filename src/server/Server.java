@@ -9,6 +9,7 @@ public class Server {
     ServerGUI serverGUI;
     ServerSocket serverSocket;
     private static final Map<String, PrintWriter> clientHandlers = new HashMap<>();
+    private static final Map<String, Set<String>> groups = new HashMap<>();
     boolean isRunning = false;
 
     public Server() {
@@ -112,7 +113,6 @@ public class Server {
         public void disconnect() {
             try {
                 socket.close();
-                // Remove the client from the list of online users
                 synchronized (clientHandlers) {
                     clientHandlers.remove(username);
                 }
@@ -123,12 +123,10 @@ public class Server {
             }
         }
 
-
         public void sendMessage(String message) {
             out.println(message);
         }
 
-        // Process incoming messages
         public void processMessage(String message) {
             if (message.startsWith("CMD_JOIN ")) {
                 username = message.substring(9);
@@ -138,20 +136,28 @@ public class Server {
                 }
                 sendMessage("Welcome to the chat, " + username + "!");
                 broadcastMessage(getOnlineUsersString());
-            } else if (message.startsWith("CMD_MESSAGE ")) {
-                // message format: "CMD_MESSAGE <sender> <receiver> <message>"
+            } else if (message.startsWith("CMD_CREATE_GROUP")) {
                 StringTokenizer tokenizer = new StringTokenizer(message);
-                tokenizer.nextToken();
-                String sender = tokenizer.nextToken();
-                String receiver = tokenizer.nextToken();
-                String msg = message.substring(14 + sender.length() + receiver.length());
-
-                if (clientHandlers.containsKey(receiver)) {
-                    clientHandlers.get(receiver).println(message);
+                tokenizer.nextToken(); // Skip the command
+                String groupName = tokenizer.nextToken();
+                Set<String> members = new HashSet<>();
+                while (tokenizer.hasMoreTokens()) {
+                    members.add(tokenizer.nextToken());
                 }
 
-                writeMessageToFile(sender, receiver, msg);
-
+                synchronized (groups) {
+                    if (groups.containsKey(groupName)) {
+                        out.println("Group creation failed: Group name already exists.");
+                    } else {
+                        groups.put(groupName, members);
+                        for (String member : members) {
+                            if (clientHandlers.containsKey(member)) {
+                                clientHandlers.get(member).println("Group " + groupName + " created with members: " + members);
+                            }
+                        }
+                        ServerGUI.logArea.append("Group " + groupName + " created with members: " + members + "\n");
+                    }
+                }
             } else if (message.equals("CMD_QUIT")) {
                 broadcastMessage(username + " has left the chat.");
                 synchronized (clientHandlers) {
@@ -160,21 +166,6 @@ public class Server {
             }
         }
 
-        // write message between 2 users to a file with the format "sender_receiver.txt" in the chat_logs directory
-        public void writeMessageToFile(String sender, String receiver, String message) {
-            // compare the usernames to determine the filename
-            String filename = "src/chat_logs/" + sender + "_" + receiver + ".txt";
-            if (sender.compareTo(receiver) > 0) {
-                filename = "src/chat_logs/" + receiver + "_" + sender + ".txt";
-            }
-            try (PrintWriter writer = new PrintWriter(new FileWriter(filename, true))) {
-                writer.println(sender + ": " + message);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        // Create a String of all online users, format: "CMD_ONLINE <user1> <user2> ..."
         public String getOnlineUsersString() {
             StringBuilder users = new StringBuilder("CMD_ONLINE");
             synchronized (clientHandlers) {
