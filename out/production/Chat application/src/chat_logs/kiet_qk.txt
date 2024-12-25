@@ -1,2 +1,19 @@
-qk: hi bk
+kiet unsent a message
 kiet: hi qk
+qk: hi hi
+kiet: hi khanh
+kiet: hi qk nha 
+kiet: chao khanh
+qk: chao kiet 
+kiet: chao qk
+qk: chao kiet 
+kiet: chao 
+kiet: chao
+kiet: hi
+qk: hi hi
+qk: chao 
+qk: chao 
+kiet: chao
+kiet: chao qk
+qk: chao
+qk: âcsca

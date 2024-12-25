@@ -1,7 +1,5 @@
 package src.client;
 
-import src.server.Server;
-
 import java.io.*;
 import java.net.Socket;
 import java.util.StringTokenizer;
@@ -28,7 +26,7 @@ public class Client {
             writer.println("CMD_JOIN " + clientUsername);
 
             // Initialize and display the GUI
-            clientGUI = new ClientGUI(clientUsername);
+            clientGUI = new ClientGUI(clientUsername, writer);
             clientGUI.setVisible(true);
             clientGUI.chatArea.append("Connected to server.\n");
 
@@ -40,16 +38,6 @@ public class Client {
                     clientGUI.inputField.setText("");
                 }
             });
-
-            // add action listener to the privateSendButton
-            clientGUI.privateSendButton.addActionListener(e -> {
-                String message = clientGUI.privateInputField.getText();
-                if (!message.isEmpty()) {
-                    writer.println("CMD_MESSAGE " + clientUsername + " " + clientGUI.selectedUser + " " + message);
-                    clientGUI.privateInputField.setText("");
-                }
-            });
-
 
             // Listen for messages from the server in a separate thread
             new Thread(() -> {
@@ -82,7 +70,16 @@ public class Client {
                 String receiveUser = tokenizer.nextToken();
                 String message = response.substring(command.length() + sendUser.length() + receiveUser.length() + 3);
                 if (receiveUser.equals("ALL") || receiveUser.equals(clientUsername)) {
-                    appendMessage(sendUser + ": " + message);
+                    //check if the private chat window is open, if it is, load the chat history
+                    if (clientGUI.privateChatWindow != null && clientGUI.privateChatWindow.selectedUser.equals(sendUser)) {
+                        clientGUI.privateChatWindow.loadChatHistory();
+                    } else {
+                        // append the notification to the chat area: "<hh:mm dd:mmm:yy> you have received a message from <sendUser>"
+                        appendMessage("[" + ClientGUI.getCurrentTime() + "] You have received a message from " + sendUser);
+
+                        // add a sound notification,run in a separate thread
+                        clientGUI.playNotificationSound();
+                    }
                 }
                 break;
 
@@ -96,6 +93,8 @@ public class Client {
                 break;
         }
     }
+
+
 
     private void appendMessage(String message) {
         SwingUtilities.invokeLater(() -> clientGUI.chatArea.append(message + "\n"));

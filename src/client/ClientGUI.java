@@ -1,10 +1,16 @@
 package src.client;
 
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.io.*;
+import java.io.File;
+import java.io.PrintWriter;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.StringTokenizer;
 
 public class ClientGUI extends JFrame {
@@ -17,15 +23,13 @@ public class ClientGUI extends JFrame {
     public JTextField inputField;
     public JButton sendButton;
     public JList<String> userList;
-    public JTextArea privateChatArea;
-    public JScrollPane privateChatScrollPane;
-    public JPanel privateBottomPanel;
-    public JTextField privateInputField;
-    public JButton privateSendButton;
     public String selectedUser;
+    public PrivateChatWindow privateChatWindow;
+    private PrintWriter writer;
 
     // Constructor to set up the UI components
-    public ClientGUI(String username) {
+    public ClientGUI(String username, PrintWriter writer) {
+        this.writer = writer;
         // Set up the frame properties
         setTitle("You are logged in as: " + username);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -49,7 +53,7 @@ public class ClientGUI extends JFrame {
         chatScrollPane = new JScrollPane(chatArea);
         chatScrollPane.setBorder(BorderFactory.createTitledBorder("Chat Area"));
         add(chatScrollPane, BorderLayout.CENTER);
-        privateSendButton = new JButton("Send");
+
 
         // Online Users Panel
         onlinePanel = new JPanel(new BorderLayout());
@@ -74,7 +78,8 @@ public class ClientGUI extends JFrame {
                 if (e.getClickCount() == 2) { // Double-click to open chat
                     selectedUser = userList.getSelectedValue();
                     if (selectedUser != null) {
-                        openPrivateChatWindow(username, selectedUser);
+                        privateChatWindow = new PrivateChatWindow(username, selectedUser, writer);
+                        privateChatWindow.setVisible(true);
                     }
                 }
             }
@@ -92,7 +97,6 @@ public class ClientGUI extends JFrame {
         bottomPanel.add(inputField, BorderLayout.CENTER);
         bottomPanel.add(sendButton, BorderLayout.EAST);
         add(bottomPanel, BorderLayout.SOUTH);
-
     }
 
     // Helper method to create a JButton with text and icon
@@ -104,18 +108,11 @@ public class ClientGUI extends JFrame {
         return new JButton(text, icon);
     }
 
-    // Helper method to append a message to the chat area
-    public void appendMessage(String message) {
-        chatArea.append(message + "\n");
-        chatArea.setCaretPosition(chatArea.getDocument().getLength());
-    }
-
     // Helper method to update the online user list
     public void updateOnlineUsers(StringTokenizer tokenizer, String currentUsername) {
         DefaultListModel<String> userListModel = new DefaultListModel<>();
         while (tokenizer.hasMoreTokens()) {
             String client = tokenizer.nextToken();
-
             if (!client.equals(currentUsername)) {
                 userListModel.addElement(client);
             }
@@ -123,46 +120,24 @@ public class ClientGUI extends JFrame {
         userList.setModel(userListModel);
     }
 
-    // Method to open a private chat window
-    public void openPrivateChatWindow(String currentUser, String selectedUser) {
-        JFrame privateChatFrame = new JFrame("Private Chat with " + selectedUser);
-        privateChatFrame.setSize(400, 300);
-        privateChatFrame.setLayout(new BorderLayout());
-        privateChatFrame.setLocationRelativeTo(null);
-
-        // Chat area
-        privateChatArea = new JTextArea();
-        privateChatArea.setEditable(false);
-        privateChatScrollPane = new JScrollPane(privateChatArea);
-        privateChatScrollPane.setBorder(BorderFactory.createTitledBorder("Chat with " + selectedUser));
-        privateChatFrame.add(privateChatScrollPane, BorderLayout.CENTER);
-
-        // Input panel
-        privateBottomPanel = new JPanel(new BorderLayout());
-        privateInputField = new JTextField();
-//        privateSendButton = new JButton("Send");
-        privateBottomPanel.add(privateInputField, BorderLayout.CENTER);
-        privateBottomPanel.add(privateSendButton, BorderLayout.EAST);
-        privateChatFrame.add(privateBottomPanel, BorderLayout.SOUTH);
-
-        // Load chat history from file (if exists)
-        String chatFileName = selectedUser + "_" + currentUser + ".txt";
-        if (currentUser.compareTo(selectedUser) < 0) {
-            chatFileName = currentUser + "_" + selectedUser + ".txt";
+    // Helper method to play a sound when a message is received
+    public void playNotificationSound() {
+        try {
+            AudioInputStream audioInputStream = AudioSystem.getAudioInputStream(new File("src/client/sound/notification.wav").getAbsoluteFile());
+            Clip clip = AudioSystem.getClip();
+            clip.open(audioInputStream);
+            clip.start();
+        } catch (Exception e) {
+            System.err.println("Error playing notification sound.");
         }
-        File chatFile = new File("src/chat_logs/" + chatFileName);
-        if (chatFile.exists()) {
-            try (BufferedReader reader = new BufferedReader(new FileReader(chatFile))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    privateChatArea.append(line + "\n");
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+    }
 
-
-        privateChatFrame.setVisible(true);
+    public static String getCurrentTime() {
+        // Get the current date and time
+        LocalDateTime currentTime = LocalDateTime.now();
+        // Define the desired format
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm dd:MMM:yy");
+        // Format and return the current date and time as a string
+        return currentTime.format(formatter);
     }
 }
