@@ -17,3 +17,15 @@ kiet: chao
 kiet: chao qk
 qk: chao
 qk: âcsca
+kiet: hi
+qk: hi nha 
+qk: hihi
+qk: hi
+qk: hi
+qk: hiiiiiiiiiiii
+kiet: hi nha 
+qk: hi hi 
+qk: hi kiet
+qk: hi qk
+qk: aaaaa
+kiet: a cc
