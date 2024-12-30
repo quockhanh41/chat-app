@@ -32,14 +32,6 @@ public class Client {
             clientGUI.setVisible(true);
             clientGUI.chatArea.append("Connected to server.\n");
 
-            // add action listener to the send button
-            clientGUI.sendButton.addActionListener(e -> {
-                String message = clientGUI.inputField.getText();
-                if (!message.isEmpty()) {
-                    writer.println("CMD_MESSAGE " + clientUsername + " " + message);
-                    clientGUI.inputField.setText("");
-                }
-            });
 
             // Listen for messages from the server in a separate thread
             new Thread(() -> {
@@ -135,7 +127,7 @@ public class Client {
                 break;
 
             default:
-                appendMessage("Unknown command: " + response);
+                appendMessage(response);
                 break;
         }
     }

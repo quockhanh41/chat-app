@@ -1,8 +1,0 @@
-qk: iii
-qk: y nho
-qk: AGE qk qk1 chao quoc khanh
-qk: AGE qk qk1 xin chao
-qk: 1 xin chao
-qk: in chao
-qk1: xin chao 
-qk1: toi ten la qk day

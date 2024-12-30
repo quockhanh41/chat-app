@@ -210,7 +210,7 @@ public class Server {
                 String msg = message.substring(20 + groupName.length() + sender.length());
                 if (groupMembers.containsKey(groupName)) {
                     for (String member : groupMembers.get(groupName)) {
-                        if (clientHandlers.containsKey(member)) {
+                        if (clientHandlers.containsKey(member) & !member.equals(sender)) {
                             clientHandlers.get(member).out.println("CMD_GROUP_MESSAGE " + sender + " " + groupName + " " + msg);
                         }
                     }
@@ -232,7 +232,6 @@ public class Server {
                 // get the filename, filename is the rest of the message
                 String filename = message.substring(12 + sender.length() + receiver.length() + fileSize.length());
 
-                // Store the file in the src/server/storage directory
                 storeToStorage(fileSize_long, filename);
 
                 // send the notification to the receiver format: "CMD_FILE_NOTIFICATION <sender> <filename>"
@@ -248,16 +247,14 @@ public class Server {
                 String groupName = tokenizer.nextToken();
                 String fileSize = tokenizer.nextToken();
                 long fileSize_long = Long.parseLong(fileSize); // Read file size
-                // get the filename, filename is the rest of the message
-                String filename = message.substring(16 + sendUser.length() + groupName.length() + fileSize.length());
+                String filename = message.substring(18 + sendUser.length() + groupName.length() + fileSize.length());
 
-                // Store the file in the src/server/storage directory
                 storeToStorage(fileSize_long, filename);
 
                 // send the notification to the group members format: "CMD_GROUP_FILE_NOTIFICATION <sendUser> <groupName> <filename>"
                 if (groupMembers.containsKey(groupName)) {
                     for (String member : groupMembers.get(groupName)) {
-                        if (clientHandlers.containsKey(member)) {
+                        if (clientHandlers.containsKey(member) && !member.equals(sendUser)) {
                             clientHandlers.get(member).out.println("CMD_FILE_NOTIFICATION " + groupName + " " + filename);
                         }
                     }
@@ -267,7 +264,9 @@ public class Server {
                 StringTokenizer tokenizer = new StringTokenizer(message);
                 tokenizer.nextToken();
                 String receiver = tokenizer.nextToken();
-                String filename = tokenizer.nextToken();
+
+                // filename is the rest of the message
+                String filename = message.substring(27 + receiver.length());
 
                 // send a notification to the receiver that the sever is start to send the file
                 if (clientHandlers.containsKey(receiver)) {
@@ -282,6 +281,7 @@ public class Server {
                         out.write(buffer, 0, bytesRead);
                     }
                     out.flush();
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

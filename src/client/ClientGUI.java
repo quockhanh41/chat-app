@@ -10,6 +10,7 @@ import java.awt.event.MouseEvent;
 import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.StringTokenizer;
 
@@ -20,7 +21,7 @@ public class ClientGUI extends JFrame {
     public JPanel onlinePanel;
     public JScrollPane userScrollPane;
     public JPanel bottomPanel;
-    public JTextField inputField;
+    private JTextField inputField;
     public JButton sendButton;
     public JList<String> userList;
     public String selectedUser;
@@ -76,6 +77,7 @@ public class ClientGUI extends JFrame {
             }
         });
 
+
         userScrollPane = new JScrollPane(userList);
         onlinePanel.add(new JLabel("Online Users"), BorderLayout.NORTH);
         onlinePanel.add(userScrollPane, BorderLayout.CENTER);
@@ -84,6 +86,27 @@ public class ClientGUI extends JFrame {
         bottomPanel = new JPanel(new BorderLayout());
         inputField = new JTextField();
         sendButton = myCreateButton("Send Message", "src/client/image/send.png");
+        sendButton.addActionListener(e -> {
+            String content = inputField.getText();
+            inputField.setText("");
+            // format content:/<receiveUser1> /<receiveUser2> ... <message>
+            if (!content.isEmpty()) {
+                String[] parts = content.split(" ");
+                List<String> receivers = new ArrayList<>();
+                StringBuilder message = new StringBuilder();
+
+                for (String part : parts) {
+                    if (part.startsWith("/")) {
+                        receivers.add(part.substring(1));
+                    } else {
+                        message.append(part).append(" ");
+                    }
+                }
+                for (String receiver : receivers) {
+                    writer.println("CMD_MESSAGE " + username + " " + receiver + " " + message);
+                }
+            }
+        });
         bottomPanel.add(inputField, BorderLayout.CENTER);
         bottomPanel.add(sendButton, BorderLayout.EAST);
         add(bottomPanel, BorderLayout.SOUTH);
